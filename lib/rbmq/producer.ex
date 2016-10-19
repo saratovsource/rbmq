@@ -57,6 +57,13 @@ defmodule RBMQ.Producer do
         GenServer.call(__MODULE__, {:publish, data}, :infinity)
       end
 
+      @doc """
+      Publish new message to a linked channel.
+      """
+      def raw_publish(data) do
+        GenServer.call(__MODULE__, {:raw_publish, data}, :infinity)
+      end
+
       @doc false
       def handle_call({:publish, data}, _from, chan) do
         case Poison.encode(data) do
@@ -65,6 +72,10 @@ defmodule RBMQ.Producer do
           {:error, _} = err ->
             {:reply, err, chan}
         end
+      end
+
+      def handle_call({:raw_publish, data}, _from, chan) do
+        safe_publish(chan, data)
       end
 
       defp safe_publish(chan, data) do
@@ -78,12 +89,15 @@ defmodule RBMQ.Producer do
 
         is_persistent = Keyword.get(conf[:queue], :durable, false)
 
+        options = [mandatory: true,
+                   persistent: is_persistent,
+                   content_type: conf[:content_type] || "text/plain"]
+
         case AMQP.Basic.publish(chan,
                                 conf[:exchange][:name],
                                 conf[:queue][:routing_key],
                                 data,
-                                [mandatory: true,
-                                 persistent: is_persistent]) do
+                                options) do
           :ok ->
             {:reply, :ok, chan}
           _ ->

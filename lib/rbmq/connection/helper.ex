@@ -48,6 +48,18 @@ defmodule RBMQ.Connection.Helper do
     end
   end
 
+  def open_connection([url: url]) do
+    Logger.debug "Establishing new AMQP connection, with url: #{inspect url}"
+
+    case Connection.open url do
+      {:ok, %Connection{}} = res ->
+        res
+      {:error, reason} ->
+        Logger.error "Error during AMQP connection establishing, url: #{inspect url}"
+        {:error, inspect(reason)}
+    end
+  end
+
   @doc """
   Same as `open_connection!/1`, but returns {:ok, conn} or {:error, reason} tuples.
   """
